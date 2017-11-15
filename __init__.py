@@ -10,12 +10,19 @@ bl_info = {
     "tracker_url": "",
     "category": "Rigging"}
 
-import bpy
 
-from . import operators
-from . import panels
+
+if "bpy" in locals():
+    import importlib
+    importlib.reload(operators)
+    importlib.reload(panels)
+    importlib.reload(properties)
+
+from . operators import *
+from . panels import *
 from . properties import SnappingChainPrefs,SnappingChainSettings
 
+import bpy
 
 def register():
     bpy.utils.register_module(__name__)

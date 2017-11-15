@@ -9,7 +9,7 @@ class PropertiesPanel(bpy.types.Panel):
     @classmethod
     def poll(self, context):
         return (context.object and context.object.type =='ARMATURE'
-                    and context.object.mode == 'POSE' and hasattr(context.object.data,"SnappingChain"))
+                    and context.object.mode == 'POSE' and context.object.data.SnappingChain)
 
     def is_selected(self,names):
         # Returns whether any of the named bones are selected.
