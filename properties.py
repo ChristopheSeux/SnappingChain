@@ -72,6 +72,8 @@ class IKFKSettings(bpy.types.PropertyGroup) :
     pin_elbow = bpy.props.StringProperty()
     target_elbow = bpy.props.StringProperty()
 
+    IK_stretch_last = bpy.props.StringProperty()
+
     full_snapping = bpy.props.BoolProperty()
 
 class SnappingChainSettings(bpy.types.PropertyGroup) :

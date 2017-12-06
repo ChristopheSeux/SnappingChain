@@ -52,6 +52,7 @@ class PropertiesPanel(bpy.types.Panel):
         for i,chain in enumerate(SnappingChain.IKFK_bones.values()) :
             if chain.IK_last and self.is_active(bone_list(chain)):
                 invert = int(not chain.invert_switch)
+                ik_last = ob.pose.bones.get(chain.IK_last)
 
                 col = layout.column(align=True)
                 if ob.path_resolve(chain.switch_prop) == invert :
@@ -89,7 +90,9 @@ class PropertiesPanel(bpy.types.Panel):
                     resetIK = box_col.operator("snappingchain.reset_ik",text = 'Reset IK')
                     resetIK.chain = repr(chain)
 
-
+                    lock_row = box_col.row()
+                    lock_row.prop(ik_last,'lock_ik_y',text = 'Y')
+                    lock_row.prop(ik_last,'lock_ik_z',text = 'Z')
                     #.box_col.prop(chain,'layer_switch',text = 'FK_IK_layer')
 
 
@@ -155,9 +158,12 @@ class SnappingChainPanel(bpy.types.Panel):
 
 
         if SnappingChain.snap_type == 'IKFK' :
-
-            addChain = main_column.operator("snappingchain.add_remove_field",text='Add FK IK Chain',icon = 'GROUP_BONE')
+            tools_row = main_column.row(align=True)
+            addChain = tools_row.operator("snappingchain.add_remove_field",text='Add FK IK Chain',icon = 'GROUP_BONE')
             addChain.values=str({'set':{'expand':True},'add':True,'prop':repr(SnappingChain.IKFK_bones)})
+            tools_row.operator("snappingchain.copy_layers",text='',icon = 'COPYDOWN')
+            tools_row.operator("snappingchain.paste_layers",text='',icon = 'PASTEDOWN')
+
             #addChain.prop = repr(SnappingChain.IKFK_bones)
             #addChain.add= True
 
@@ -168,6 +174,9 @@ class SnappingChainPanel(bpy.types.Panel):
 
                 row.prop(chain,'expand',text='',icon = 'TRIA_DOWN' if chain.expand else 'TRIA_RIGHT',emboss=False)
                 row.prop(chain,'name',text='')
+
+                mirror_chain = row.operator("snappingchain.mirror_chain",icon ='MOD_MIRROR',text='')
+                mirror_chain.index =i
 
                 subrow = row.row(align=True)
                 remove_bone = subrow.operator("snappingchain.add_remove_field",icon='ZOOMOUT',text='')
@@ -214,33 +223,39 @@ class SnappingChainPanel(bpy.types.Panel):
                     subrow.prop(chain,'switch_prop')
                     subrow.prop(chain,'invert_switch',text='')
 
-                    mirror_chain = col.operator("snappingchain.mirror_chain",icon ='MOD_MIRROR',text='Mirror')
-                    mirror_chain.index =i
+
 
                     col.separator()
 
                     box = col.box()
-                    subrow = box.row(align=True)
+                    box_col = box.column()
+                    subrow = box_col.row(align=True)
                     subrow.prop(chain,"extra_settings",text='',icon = 'TRIA_DOWN' if chain.extra_settings else 'TRIA_RIGHT',emboss = False)
                     subrow.label('Extra settings')
 
 
                     if chain.extra_settings :
 
-                        subrow = box.row(align=True)
+                        subrow = box_col.row(align=True)
+                        subrow.prop_search(chain,'IK_stretch_last',ob.pose,'bones')
+                        eyedrop=subrow.operator("snappingchain.bone_eyedropper",text='',icon = 'EYEDROPPER')
+                        eyedrop.field = repr(chain)
+                        eyedrop.prop = 'IK_stretch_last'
+
+                        subrow = box_col.row(align=True)
                         subrow.prop_search(chain,'pin_elbow',ob.pose,'bones')
                         eyedrop=subrow.operator("snappingchain.bone_eyedropper",text='',icon = 'EYEDROPPER')
                         eyedrop.field = repr(chain)
                         eyedrop.prop = 'pin_elbow'
 
-                        subrow = box.row(align=True)
+                        subrow = box_col.row(align=True)
                         subrow.prop_search(chain,'target_elbow',ob.pose,'bones')
                         eyedrop=subrow.operator("snappingchain.bone_eyedropper",text='',icon = 'EYEDROPPER')
                         eyedrop.field = repr(chain)
                         eyedrop.prop = 'target_elbow'
 
-                        subrow = box.row(align=True)
-                        subrow.prop(chain,'full_snapping')
+                        #subrow = box_col.row(align=True)
+                        box_col.prop(chain,'full_snapping')
 
 
 

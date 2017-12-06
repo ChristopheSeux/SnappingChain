@@ -5,6 +5,78 @@ from bpy.props import FloatProperty, BoolProperty, FloatVectorProperty
 from mathutils import Matrix
 from rigutils.snap_ik_fk import snap_ik_fk
 
+
+
+class CopyLayers(bpy.types.Operator):
+
+    bl_idname = "snappingchain.copy_layers"
+    bl_label = "Copy Chain"
+
+    def execute(self, context):
+        ob = context.object
+        armature = ob.data
+        SnappingChain = armature.SnappingChain
+
+        Chains = []
+        #delete_layer
+        for chain in SnappingChain.IKFK_bones :
+            chain_infos = {}
+            for attr in [a.identifier for a in chain.bl_rna.properties if a.identifier!='rna_type'] :
+                value = getattr(chain,attr)
+                if isinstance(value,bpy.types.bpy_prop_collection) :
+                    sub_value = []
+                    for sub_chain in value :
+                        sub_chain_infos = {}
+                        for sub_attr in [a.identifier for a in sub_chain.bl_rna.properties if a.identifier!='rna_type'] :
+                            sub_chain_infos[sub_attr] = getattr(sub_chain,sub_attr)
+                        sub_value.append(sub_chain_infos)
+
+                    value = sub_value
+
+                chain_infos[attr] = value
+            Chains.append(chain_infos)
+
+        print(Chains)
+
+        context.window_manager.clipboard = str(Chains)
+        return {'FINISHED'}
+
+class PasteLayers(bpy.types.Operator):
+
+    bl_idname = "snappingchain.paste_layers"
+    bl_label = "Copy Chain"
+
+    def execute(self, context):
+        ob = context.object
+        armature = ob.data
+        SnappingChain = armature.SnappingChain
+
+
+        chains=[]
+        #delete_layer
+
+        #try :
+        for chain_info in eval(context.window_manager.clipboard) :
+            chain = SnappingChain.IKFK_bones.add()
+            for attr,value in chain_info.items() :
+                #if not chain.is_property_read_only(attr) :
+                if isinstance(value,list) :
+                    for sub_chain in value :
+                        new_sub_chain = getattr(chain,attr).add()
+                        for sub_attr,sub_value in sub_chain.items() :
+                            setattr(new_sub_chain,sub_attr,sub_value)
+
+                else :
+                    setattr(chain,attr,value)
+
+
+        #except :
+        #    self.report({'ERROR'},"Wrong ClipBoard")
+
+        return {'FINISHED'}
+
+
+
 class ElbowSnapping(bpy.types.Operator):
     bl_idname = "snappingchain.elbow_snapping"
     bl_label = "Elbow snapping"
@@ -46,8 +118,8 @@ class MirrorChain(bpy.types.Operator):
 
         mirrorChain = SnappingChain.IKFK_bones.add()
 
-        mirrorfield = ['name','FK_root','FK_mid','FK_tip',
-                            'IK_root','IK_mid','IK_tip','IK_pole',
+        mirrorfield = ['name','FK_root','FK_tip',
+                            'IK_last','IK_tip','IK_pole',
                                 'pin_elbow','target_elbow'
                         ]
 
@@ -57,6 +129,13 @@ class MirrorChain(bpy.types.Operator):
             if mirrorprop :
                 setattr(mirrorChain,prop,mirrorprop)
 
+
+        for fk_mid in IKFK_chain.FK_mid :
+            mirror_fk_mid_name = find_mirror(fk_mid.name)
+            mirror_fk_mid = mirrorChain.FK_mid.add()
+            if mirror_fk_mid_name :
+                setattr(mirror_fk_mid,'name',mirror_fk_mid_name)
+
         mirror_switch = mirror_path(IKFK_chain.switch_prop)
 
         if mirror_switch :
@@ -64,7 +143,7 @@ class MirrorChain(bpy.types.Operator):
 
         mirrorChain.invert_switch = IKFK_chain.invert_switch
 
-        mirrorChain.expand = True
+        mirrorChain.expand = IKFK_chain.expand
         return {"FINISHED"}
 
 
@@ -98,7 +177,12 @@ class IKFKSnapping(bpy.types.Operator):
         IK_tip = poseBone.get(IKFK_chain['IK_tip'])
         IK_pole = poseBone.get(IKFK_chain['IK_pole'])
 
-        invert = IKFK_chain['invert_switch']
+
+        IK_stretch_last = poseBone.get(IKFK_chain['IK_stretch_last']) if IKFK_chain.get('IK_stretch_last') else  None
+
+        invert = IKFK_chain.invert_switch
+
+        full_snapping = IKFK_chain.full_snapping
 
         ik_fk_layer = (IKFK_chain['FK_layer'],IKFK_chain['IK_layer'])
 
@@ -110,7 +194,13 @@ class IKFKSnapping(bpy.types.Operator):
 
 
 
-        snap_ik_fk(ob,way,switch_prop,FK_root,FK_tip,IK_last,IK_tip,IK_pole,FK_mid,full_snapping,invert,ik_fk_layer,auto_switch=True)
+        snap_ik_fk(ob,way,switch_prop,FK_root,FK_tip,IK_last,IK_tip,IK_pole,
+                    IK_stretch_last = IK_stretch_last,
+                    FK_mid = FK_mid,
+                    full_snapping = full_snapping,
+                    invert = invert,
+                    ik_fk_layer = ik_fk_layer,
+                    auto_switch=True)
 
         return {'FINISHED'}
 
